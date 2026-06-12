@@ -1,11 +1,11 @@
-import { put, list, del } from '@vercel/blob'
+import { put, list, del, get } from '@vercel/blob'
 import type { StorageAdapter, InboxFile } from './index'
 
 export class VercelBlobAdapter implements StorageAdapter {
   async save(filename: string, content: string, userId: string): Promise<string> {
     const key = `${userId}/phone-inbox/${filename}`
     const blob = await put(key, content, {
-      access: 'public',
+      access: 'private',
       contentType: 'text/markdown',
       addRandomSuffix: false,
     })
@@ -17,8 +17,10 @@ export class VercelBlobAdapter implements StorageAdapter {
     const { blobs } = await list({ prefix })
     const files: InboxFile[] = []
     for (const blob of blobs) {
-      const res = await fetch(blob.url)
-      const content = await res.text()
+      const blobData = await get(blob.url, { access: 'private' })
+      const content = blobData?.statusCode === 200
+        ? await new Response(blobData.stream).text()
+        : ''
       files.push({
         filename: blob.pathname.replace(prefix, ''),
         content,
